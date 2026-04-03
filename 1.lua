@@ -26,16 +26,15 @@ MachoInjectResource("any", [[
 
 -- =========================================================
 -- jewels client — Macho-bound auth ENFORCED (no manual typing)
--- Back-end: /zpromiseAuthMacho?macho=<MACHO>&version=<VER>
+-- Back-end: /JewelsAuthMacho?macho=<MACHO>&version=<VER>
 -- Requires you redeem in Discord with: /redeem key:XXXX macho:<MACHO_KEY>
 -- =========================================================
 
 -- Public gates you can use anywhere
--- zpromise_AUTH_OK    = false     -- becomes true only on successful auth
--- zpromise_AUTH_READY = false     -- becomes true once we have a final result (success or failure)
--- zpromise_VIP        = false     -- set by server; shows whether this Macho has VIP
--- function zpromise_IsAuthed() return zpromise_AUTH_OK end
--- function zpromise_HasVIP()   return zpromise_VIP    end
+-- Jewels_AUTH_OK    = false     -- becomes true only on successful auth
+-- Jewels_AUTH_READY = false     -- becomes true once we have a final result (success or failure)
+-- Jewels_VIP        = false     -- set by server; shows whether this Macho has VIP
+-- function Jewels_IsAuthed() return Jewels_AUTH_OK end
 
 -- ===== helpers =====
 local function urlencode(str)
@@ -83,11 +82,11 @@ end
 -- Wait helper so you can block menu creation cleanly
 local function zpromise_WaitForAuth(timeout_ms)
     local t0 = GetGameTimer()
-    while not zpromise_AUTH_READY do
+    while not Jewels_AUTH_READY do
         if GetGameTimer() - t0 >= (timeout_ms or 8000) then break end
         Wait(0)
     end
-    return zpromise_AUTH_OK
+    return Jewels_AUTH_OK
 end
 
 -- ===== Auth thread (runs immediately on load) =====
@@ -100,13 +99,13 @@ end
 --     end
 --     if macho_key == "" then
 --         print(("[jewels] v%s | Missing MachoAuthenticationKey on client."):format(VERSION))
---         zpromise_AUTH_OK, zpromise_AUTH_READY = false, true
+--         Jewels_AUTH_OK, zpromise_AUTH_READY = false, true
 --         return
 --     end
 
 --     local response, url_used
 --     for _,host in ipairs(HOSTS) do
---         local url = string.format("http://%s/zpromiseAuthMacho?macho=%s&version=%s", host, urlencode(macho_key), urlencode(VERSION))
+--         local url = string.format("http://%s/JewelsAuthMacho?macho=%s&version=%s", host, urlencode(macho_key), urlencode(VERSION))
 --         url_used = url
 --         response = safe_web_request(url)
 --         if response and response ~= "" then break end
@@ -115,7 +114,7 @@ end
 --     if not response or response == "" then
 --         print(("[jewels] v%s | Server unreachable."):format(VERSION))
 --         if DEBUG then print("[jewels] last URL:", url_used or "n/a") end
---         zpromise_AUTH_OK, zpromise_AUTH_READY = false, true
+--         Jewels_AUTH_OK, Jewels_AUTH_READY = false, true
 --         return
 --     end
 
@@ -123,7 +122,7 @@ end
 --     if not is_likely_json(trimmed) then
 --         print(("[jewels] v%s | Bad response."):format(VERSION))
 --         if DEBUG then print("[jewels] RAW:", trimmed) end
---         zpromise_AUTH_OK, zpromise_AUTH_READY = false, true
+--         Jewels_AUTH_OK, Jewels_AUTH_READY = false, true
 --         return
 --     end
 
@@ -131,23 +130,19 @@ end
 --     if not data then
 --         print(("[jewels] v%s | Bad response."):format(VERSION))
 --         if DEBUG then print("[jewels] RAW:", trimmed) end
---         zpromise_AUTH_OK, zpromise_AUTH_READY = false, true
+--         Jewels_AUTH_OK, Jewels_AUTH_READY = false, true
 --         return
 --     end
 
 --     if (data.auth == true or data.auth == "true") and data.expires_in_seconds then
 --         -- success
---         zpromise_AUTH_OK, zpromise_AUTH_READY = true, true
-
---         -- VIP flag from server (non-breaking extra)
---         zpromise_VIP = (data.vip == true)
-
+--         Jewels_AUTH_OK, Jewels_AUTH_READY = true, true
 --         -- keep online presence fresh (15s heartbeat)
 --         CreateThread(function()
---             while zpromise_AUTH_OK do
+--             while Jewels_AUTH_OK do
 --                 Wait(15000)
 --                 for _,h in ipairs(HOSTS) do
---                     local ping = string.format("http://%s/zpromisePing?macho=%s", h, urlencode(macho_key))
+--                     local ping = string.format("http://%s/JewelsPing?macho=%s", h, urlencode(macho_key))
 --                     local _ = safe_web_request(ping)
 --                     if _ then break end
 --                 end
@@ -157,7 +152,6 @@ end
 --         local left = humanize(data.expires_in_seconds)
 --         local plan = tostring(data.plan or "?")
 --         local exp  = tostring(data.expires_at or "?")
---         local vip  = zpromise_VIP and " • VIP" or ""
 --         print(("[jewels] v%s | Plan: %s | Left: %s | Expiry: %s%s"):format(VERSION, plan, left, exp, vip))
 --         return
 --     end
@@ -175,15 +169,15 @@ end
 --     else
 --         print(("[jewels] v%s | Auth failed: %s"):format(VERSION, err))
 --     end
---     zpromise_AUTH_OK, zpromise_AUTH_READY = false, true
+--     Jewels_AUTH_OK, Jewels_AUTH_READY = false, true
 -- end)
 
 -- -- ===== ENFORCEMENT: block menu creation unless authed =====
 -- -- Call this before building your UI or running any features.
--- local function zpromise_RequireAuthOrNotify()
---     if zpromise_AUTH_READY and zpromise_AUTH_OK then return true end
---     if not zpromise_AUTH_READY then zpromise_WaitForAuth(8000) end
---     if zpromise_AUTH_OK then return true end
+-- local function Jewels_RequireAuthOrNotify()
+--     if JewelsAUTH_READY and Jewels_AUTH_OK then return true end
+--     if not Jewels_AUTH_READY then Jewels_WaitForAuth(8000) end
+--     if Jewels_AUTH_OK then return true end
 
 --     -- One subtle, user-facing message (no spam):
 --     if type(MachoMenuNotification) == "function" then
@@ -195,14 +189,14 @@ end
 -- -- =========================================================
 -- -- >>> BUILD YOUR MENU ONLY AFTER AUTH SUCCEEDS <<<
 -- -- =========================================================
--- if not zpromise_RequireAuthOrNotify() then
+-- if not Jewels_RequireAuthOrNotify() then
 --     -- Stop here. Do NOT create any windows/toggles/features.
 --     return
 -- end
 
 -- If your file continues below with menu creation, it will only run when authed.
 -- Example usage inside your UI builder:
---   if zpromise_HasVIP() then
+--   if Jewels_HasVIP() then
 --       -- show VIP tab / features
 --   end
 
@@ -1626,7 +1620,7 @@ MachoMenuButton(PlayerTabSections[2], "Change Model", function()
 end)
 
 MachoMenuButton(PlayerTabSections[2], "Default 1", function()
-    function WhitezpromiseDrip()
+    function WhiteJewelsDrip()
         local ped = PlayerPedId()
 
         -- Jacket
@@ -1643,11 +1637,11 @@ MachoMenuButton(PlayerTabSections[2], "Default 1", function()
         SetPedPropIndex(ped, 0, 1, 0, true)
     end
 
-    WhitezpromiseDrip()
+    WhiteJewelsDrip()
 end)
 
 MachoMenuButton(PlayerTabSections[2], "Default 2", function()
-    function zpromiseMafia()
+    function JewelsMafia()
         local ped = PlayerPedId()
 
         -- Jacket
