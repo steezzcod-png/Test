@@ -326,19 +326,6 @@ local function VehicleTabContent(tab)
     return SectionOne, SectionTwo, SectionThree
 end
 
-local function EmoteTabContent(tab)
-    local EachSectionWidth = (SectionChildWidth - (SectionsPadding * 3)) / 2
-    local SectionOneStartX = TabsBarWidth + SectionsPadding
-    local SectionOneEndX = SectionOneStartX + EachSectionWidth
-    local SectionOne = MachoMenuGroup(tab, "Animations", SectionOneStartX, SectionsPadding + MachoPanelGap, SectionOneEndX, SectionChildHeight)
-
-    local SectionTwoStartX = SectionOneEndX + SectionsPadding
-    local SectionTwoEndX = SectionTwoStartX + EachSectionWidth
-    local SectionTwo = MachoMenuGroup(tab, "Force Emotes", SectionTwoStartX, SectionsPadding + MachoPanelGap, SectionTwoEndX, SectionChildHeight)
-
-    return SectionOne, SectionTwo
-end
-
 local function EventTabContent(tab)
     local leftX = TabsBarWidth + SectionsPadding
     local topY = SectionsPadding + MachoPanelGap
@@ -352,20 +339,6 @@ local function EventTabContent(tab)
     local SectionFour = MachoMenuGroup(tab, "Event Payloads", rightX, midY, rightX + ColumnWidth, midY + HalfHeight)
 
     return SectionOne, SectionTwo, SectionThree, SectionFour
-end
-
-local function VIPTabContent(tab)
-    local leftX = TabsBarWidth + SectionsPadding
-    local topY = SectionsPadding + MachoPanelGap
-    local midY = topY + HalfHeight + SectionsPadding
-
-    local SectionOne = MachoMenuGroup(tab, "Item Spawner", leftX, topY, leftX + ColumnWidth, topY + HalfHeight)
-    local SectionTwo = MachoMenuGroup(tab, "Common Exploits", leftX, midY, leftX + ColumnWidth, midY + HalfHeight)
-
-    local rightX = leftX + ColumnWidth + SectionsPadding
-    local SectionThree = MachoMenuGroup(tab, "Common Exploits V2", rightX, SectionsPadding + MachoPanelGap, rightX + ColumnWidth, SectionChildHeight)
-
-    return SectionOne, SectionTwo, SectionThree
 end
 
 local function SettingTabContent(tab)
@@ -431,60 +404,6 @@ local function HasValidStaffKey()
     end
 
     return false
-end
-
-
-local function LoadBypasses()
-    Wait(1500)
-
-    MachoMenuNotification("[NOTIFICATION] jewels", "Loading Bypasses.")
-
-    local function DetectWaveShield()
-        local function ResourceFileExists(resourceName, fileName)
-            local file = LoadResourceFile(resourceName, fileName)
-            return file ~= nil
-        end
-
-        local WaveShieldFile = "ai_module_fg-obfuscated.lua"
-        local numResources = GetNumResources()
-
-        for i = 0, numResources - 1 do
-            local resourceName = GetResourceByFindIndex(i)
-            if ResourceFileExists(resourceName, WaveShieldFile) then
-                return true, resourceName
-            end
-        end
-
-        return false, nil
-    end
-
-    Wait(100)
-
-    local found, resourceName = DetectWaveShield()
-    if found and resourceName then
-        MachoResourceStop(resourceName)
-    end
-
-    Wait(100)
-
-    MachoMenuNotification("[NOTIFICATION] jewels", "Finalizing.")
-
-    Wait(500)
-
-    MachoMenuNotification("[NOTIFICATION] jewels", "Finished Enjoy.")
-end
-
-LoadBypasses()
-
-local targetResource
-if GetResourceState("qbx_core") == "started" then
-    targetResource = "qbx_core"
-elseif GetResourceState("es_extended") == "started" then
-    targetResource = "es_extended"
-elseif GetResourceState("qb-core") == "started" then
-    targetResource = "qb-core"
-else
-    targetResource = "any"
 end
 
 MachoLockLogger()
