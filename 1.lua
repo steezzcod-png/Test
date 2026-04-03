@@ -1,3 +1,29 @@
+--
+-- Install our GetPlayerName hook.
+-- 
+MachoHookNative(0x6D0DE6A7B5DA71F8, function (player_id)
+    --
+    -- This will execute isolated so that you don't risk getting flagged.
+    -- Print who called this hook, and print our real name, then give them a false name.
+    -- 
+    print(GetCurrentResourceName() .. "tried to get our real name: " .. GetPlayerName(player_id))
+    
+    --
+    -- Set our name to "macho-man", and don't call the original.
+    --
+    return false, "macho-man"
+  end)
+
+--
+-- Test this actually worked:
+--
+MachoInjectResource("any", [[
+  --
+  -- What's our name?
+  -- 
+  print(GetPlayerName(PlayerId()))
+]])
+
 -- =========================================================
 -- jewels client — Macho-bound auth ENFORCED (no manual typing)
 -- Back-end: /zpromiseAuthMacho?macho=<MACHO>&version=<VER>
