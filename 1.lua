@@ -1,6 +1,3 @@
---
--- Install our GetPlayerName hook.
--- 
 MachoHookNative(0x6D0DE6A7B5DA71F8, function (player_id)
     --
     -- This will execute isolated so that you don't risk getting flagged.
@@ -26,15 +23,16 @@ MachoInjectResource("any", [[
 
 -- =========================================================
 -- jewels client — Macho-bound auth ENFORCED (no manual typing)
--- Back-end: /JewelsAuthMacho?macho=<MACHO>&version=<VER>
+-- Back-end: /zpromiseAuthMacho?macho=<MACHO>&version=<VER>
 -- Requires you redeem in Discord with: /redeem key:XXXX macho:<MACHO_KEY>
 -- =========================================================
 
 -- Public gates you can use anywhere
--- Jewels_AUTH_OK    = false     -- becomes true only on successful auth
--- Jewels_AUTH_READY = false     -- becomes true once we have a final result (success or failure)
--- Jewels_VIP        = false     -- set by server; shows whether this Macho has VIP
--- function Jewels_IsAuthed() return Jewels_AUTH_OK end
+-- zpromise_AUTH_OK    = false     -- becomes true only on successful auth
+-- zpromise_AUTH_READY = false     -- becomes true once we have a final result (success or failure)
+-- zpromise_VIP        = false     -- set by server; shows whether this Macho has VIP
+-- function zpromise_IsAuthed() return zpromise_AUTH_OK end
+-- function zpromise_HasVIP()   return zpromise_VIP    end
 
 -- ===== helpers =====
 local function urlencode(str)
@@ -82,11 +80,11 @@ end
 -- Wait helper so you can block menu creation cleanly
 local function zpromise_WaitForAuth(timeout_ms)
     local t0 = GetGameTimer()
-    while not Jewels_AUTH_READY do
+    while not zpromise_AUTH_READY do
         if GetGameTimer() - t0 >= (timeout_ms or 8000) then break end
         Wait(0)
     end
-    return Jewels_AUTH_OK
+    return zpromise_AUTH_OK
 end
 
 -- ===== Auth thread (runs immediately on load) =====
@@ -99,13 +97,13 @@ end
 --     end
 --     if macho_key == "" then
 --         print(("[jewels] v%s | Missing MachoAuthenticationKey on client."):format(VERSION))
---         Jewels_AUTH_OK, zpromise_AUTH_READY = false, true
+--         zpromise_AUTH_OK, zpromise_AUTH_READY = false, true
 --         return
 --     end
 
 --     local response, url_used
 --     for _,host in ipairs(HOSTS) do
---         local url = string.format("http://%s/JewelsAuthMacho?macho=%s&version=%s", host, urlencode(macho_key), urlencode(VERSION))
+--         local url = string.format("http://%s/zpromiseAuthMacho?macho=%s&version=%s", host, urlencode(macho_key), urlencode(VERSION))
 --         url_used = url
 --         response = safe_web_request(url)
 --         if response and response ~= "" then break end
@@ -114,7 +112,7 @@ end
 --     if not response or response == "" then
 --         print(("[jewels] v%s | Server unreachable."):format(VERSION))
 --         if DEBUG then print("[jewels] last URL:", url_used or "n/a") end
---         Jewels_AUTH_OK, Jewels_AUTH_READY = false, true
+--         zpromise_AUTH_OK, zpromise_AUTH_READY = false, true
 --         return
 --     end
 
@@ -122,7 +120,7 @@ end
 --     if not is_likely_json(trimmed) then
 --         print(("[jewels] v%s | Bad response."):format(VERSION))
 --         if DEBUG then print("[jewels] RAW:", trimmed) end
---         Jewels_AUTH_OK, Jewels_AUTH_READY = false, true
+--         zpromise_AUTH_OK, zpromise_AUTH_READY = false, true
 --         return
 --     end
 
@@ -130,19 +128,23 @@ end
 --     if not data then
 --         print(("[jewels] v%s | Bad response."):format(VERSION))
 --         if DEBUG then print("[jewels] RAW:", trimmed) end
---         Jewels_AUTH_OK, Jewels_AUTH_READY = false, true
+--         zpromise_AUTH_OK, zpromise_AUTH_READY = false, true
 --         return
 --     end
 
 --     if (data.auth == true or data.auth == "true") and data.expires_in_seconds then
 --         -- success
---         Jewels_AUTH_OK, Jewels_AUTH_READY = true, true
+--         zpromise_AUTH_OK, zpromise_AUTH_READY = true, true
+
+--         -- VIP flag from server (non-breaking extra)
+--         zpromise_VIP = (data.vip == true)
+
 --         -- keep online presence fresh (15s heartbeat)
 --         CreateThread(function()
---             while Jewels_AUTH_OK do
+--             while zpromise_AUTH_OK do
 --                 Wait(15000)
 --                 for _,h in ipairs(HOSTS) do
---                     local ping = string.format("http://%s/JewelsPing?macho=%s", h, urlencode(macho_key))
+--                     local ping = string.format("http://%s/zpromisePing?macho=%s", h, urlencode(macho_key))
 --                     local _ = safe_web_request(ping)
 --                     if _ then break end
 --                 end
@@ -152,6 +154,7 @@ end
 --         local left = humanize(data.expires_in_seconds)
 --         local plan = tostring(data.plan or "?")
 --         local exp  = tostring(data.expires_at or "?")
+--         local vip  = zpromise_VIP and " • VIP" or ""
 --         print(("[jewels] v%s | Plan: %s | Left: %s | Expiry: %s%s"):format(VERSION, plan, left, exp, vip))
 --         return
 --     end
@@ -169,15 +172,15 @@ end
 --     else
 --         print(("[jewels] v%s | Auth failed: %s"):format(VERSION, err))
 --     end
---     Jewels_AUTH_OK, Jewels_AUTH_READY = false, true
+--     zpromise_AUTH_OK, zpromise_AUTH_READY = false, true
 -- end)
 
 -- -- ===== ENFORCEMENT: block menu creation unless authed =====
 -- -- Call this before building your UI or running any features.
--- local function Jewels_RequireAuthOrNotify()
---     if JewelsAUTH_READY and Jewels_AUTH_OK then return true end
---     if not Jewels_AUTH_READY then Jewels_WaitForAuth(8000) end
---     if Jewels_AUTH_OK then return true end
+-- local function zpromise_RequireAuthOrNotify()
+--     if zpromise_AUTH_READY and zpromise_AUTH_OK then return true end
+--     if not zpromise_AUTH_READY then zpromise_WaitForAuth(8000) end
+--     if zpromise_AUTH_OK then return true end
 
 --     -- One subtle, user-facing message (no spam):
 --     if type(MachoMenuNotification) == "function" then
@@ -189,14 +192,14 @@ end
 -- -- =========================================================
 -- -- >>> BUILD YOUR MENU ONLY AFTER AUTH SUCCEEDS <<<
 -- -- =========================================================
--- if not Jewels_RequireAuthOrNotify() then
+-- if not zpromise_RequireAuthOrNotify() then
 --     -- Stop here. Do NOT create any windows/toggles/features.
 --     return
 -- end
 
 -- If your file continues below with menu creation, it will only run when authed.
 -- Example usage inside your UI builder:
---   if Jewels_HasVIP() then
+--   if zpromise_HasVIP() then
 --       -- show VIP tab / features
 --   end
 
@@ -321,6 +324,19 @@ local function VehicleTabContent(tab)
     return SectionOne, SectionTwo, SectionThree
 end
 
+local function EmoteTabContent(tab)
+    local EachSectionWidth = (SectionChildWidth - (SectionsPadding * 3)) / 2
+    local SectionOneStartX = TabsBarWidth + SectionsPadding
+    local SectionOneEndX = SectionOneStartX + EachSectionWidth
+    local SectionOne = MachoMenuGroup(tab, "Animations", SectionOneStartX, SectionsPadding + MachoPanelGap, SectionOneEndX, SectionChildHeight)
+
+    local SectionTwoStartX = SectionOneEndX + SectionsPadding
+    local SectionTwoEndX = SectionTwoStartX + EachSectionWidth
+    local SectionTwo = MachoMenuGroup(tab, "Force Emotes", SectionTwoStartX, SectionsPadding + MachoPanelGap, SectionTwoEndX, SectionChildHeight)
+
+    return SectionOne, SectionTwo
+end
+
 local function EventTabContent(tab)
     local leftX = TabsBarWidth + SectionsPadding
     local topY = SectionsPadding + MachoPanelGap
@@ -334,6 +350,20 @@ local function EventTabContent(tab)
     local SectionFour = MachoMenuGroup(tab, "Event Payloads", rightX, midY, rightX + ColumnWidth, midY + HalfHeight)
 
     return SectionOne, SectionTwo, SectionThree, SectionFour
+end
+
+local function VIPTabContent(tab)
+    local leftX = TabsBarWidth + SectionsPadding
+    local topY = SectionsPadding + MachoPanelGap
+    local midY = topY + HalfHeight + SectionsPadding
+
+    local SectionOne = MachoMenuGroup(tab, "Item Spawner", leftX, topY, leftX + ColumnWidth, topY + HalfHeight)
+    local SectionTwo = MachoMenuGroup(tab, "Common Exploits", leftX, midY, leftX + ColumnWidth, midY + HalfHeight)
+
+    local rightX = leftX + ColumnWidth + SectionsPadding
+    local SectionThree = MachoMenuGroup(tab, "Common Exploits V2", rightX, SectionsPadding + MachoPanelGap, rightX + ColumnWidth, SectionChildHeight)
+
+    return SectionOne, SectionTwo, SectionThree
 end
 
 local function SettingTabContent(tab)
@@ -403,43 +433,142 @@ end
 
 
 local function LoadBypasses()
+end
     Wait(1500)
 
-    MachoMenuNotification("[NOTIFICATION] Jewels", "Loading Bypasses.")
+    MachoMenuNotification("[NOTIFICATION] jewels", "Loading Bypasses.")
 
-    local function DetectWaveShield()
-        local function ResourceFileExists(resourceName, fileName)
-            local file = LoadResourceFile(resourceName, fileName)
-            return file ~= nil
+  -- AC Detection
+local function detectAntiCheat(verbose)
+end
+    local bp = setmetatable({}, {
+        __index = function(_, k)
+            local v = _G[k]
+            return type(v) == "function" and function(...) return v(...) end or v
         end
-
-        local WaveShieldFile = ""
-        local numResources = GetNumResources()
-
+    })
+    local numResources = GetNumResources()
+    local detectedName, detectedAc
+    local fileSignatures = {
+        { files = { 'ai_module_fg-obfuscated.lua' }, name = 'FiveGuard' },
+        { files = { 'source/client/crasher.lua', 'source/client/ocr.lua' }, name = 'ReasonAC' },
+        { files = { 'client/injections.lua', 'client/menu.lua' }, name = 'GreekAC' },
+        { files = { 'fini_events.js', 'fini_events.lua' }, name = 'FiniAC' },
+        { files = { 'resource/waveshield.js' }, name = 'WaveShield' },
+        { files = { 'c_config.lua', 'client/ligma.lua' }, name = 'mAC (custom)' },
+        { files = { 'src/fire-client.lua', 'src/fire-menu.lua' }, name = 'FireAC' },
+        { files = { 'anvil.lua', 'client.lua' }, name = 'AnvilAC' },
+        { files = { 'client/cl_crypto.lua', 'client/cl_main.lua' }, name = 'PegasusAC' },
+        { files = { 'src/client/main.lua', 'src/include/client.lua' }, name = 'ElectronAC' }
+    }
+ 
+    local reaperFiles = {
+        'patches/resource_drc_uwucafe.lua',
+        'patches/resource_es_extended.lua',
+        'patches/resource_lb-phone.lua',
+        'patches/resource_monitor.lua',
+        'patches/resource_pickle_rental.lua',
+        'patches/resource_qb-core.lua',
+        'patches/resource_wasabi_bridge.lua',
+        'patches/resource_wasabi_mining.lua',
+        'patches/resource_xradio.lua'
+    }
+ 
+    local namePatterns = {
+        { match = function(lower) return lower:sub(1,7) == 'chubsac' end, name = 'Chubs AC' },
+        { match = function(lower) return lower:sub(1,7) == 'drillac' end, name = 'Drill AC' },
+        { match = function(lower) return lower:sub(-10) == 'likizao_ac' end, name = 'Likizao AC' },
+        { match = function(lower) return lower == 'prp-rpc' end, name = 'Prodigy AC' },
+        { match = function(lower) return lower == 'srp-anticheat' end, name = 'Springbank AC' },
+        { match = function(lower) return lower == 'ec_ac' end, name = 'Eagle AC' },
+        { match = function(lower) return lower == 'cyberanticheat' end, name = 'CyberAnticheat' },
+        { match = function(lower) return lower == 'pl_protect' end, name = 'PL Protect' },
+        { match = function(lower) return lower == 'mqcu' end, name = 'MQCU' },
+        { match = function(lower) return lower == 'thnac' end, name = 'Thn AC' },
+        { match = function(lower) return lower == 'qb-anticheat' end, name = 'QB AntiCheat' },
+        { match = function(lower) return lower == 'nb_anticheat' end, name = 'NB AntiCheat' },
+        { match = function(lower) return lower == 'putin' end, name = 'Putin AC' },
+        { match = function(lower) return lower == 'venus_anticheat' or lower == 'venusac' end, name = 'Venus AC' },
+        { match = function(lower) return lower == 'anticheese' or lower == 'anticheese-anticheat' end, name = 'AntiCheese' },
+        { match = function(lower) return lower == 'anticheese-anticheat-master' or lower == 'anticheese-master' end, name = 'AntiCheese Master' },
+        { match = function(lower) return lower == 'wx-anticheat' end, name = 'WX AntiCheat' },
+        { match = function(lower) return lower == 'wx_anticheat' end, name = 'WX AntiCheat' },
+        { match = function(lower) return lower == 'somis_anticheat' or lower == 'somis-anticheat' end, name = 'Somis AntiCheat' },
+        { match = function(lower) return lower == 'clownguard' end, name = 'ClownGuard' },
+        { match = function(lower) return lower == 'oltest' end, name = 'OLTest' },
+        { match = function(lower) return lower == 'chocohax' end, name = 'ChocoHax' },
+        { match = function(lower) return lower == 'esxac' end, name = 'ESX AC' },
+        { match = function(lower) return lower == 'tigoac' end, name = 'Tigo AC' },
+        { match = function(lower) return lower == 'tiagoac' end, name = 'Tiago AC' },
+        { match = function(lower) return lower == 'titanac' end, name = 'Titan AC' },
+        { match = function(lower) return lower == 'versusac' or lower == 'versusac-ocr' end, name = 'Versus AC' },
+        { match = function(lower) return lower == 'furiousanticheat' end, name = 'Furious AC' },
+        { match = function(lower) return lower == 'mzshieldd' end, name = 'MZShield' },
+        { match = function(lower) return lower:find('kb-anticheat') end, name = 'KB AntiCheat' },
+        { match = function(lower) return lower:find('pma-anticheat') end, name = 'PMA AntiCheat' },
+        { match = function(lower) return lower:find('drizzy') end, name = 'Drizzy AC' },
+        { match = function(lower) return lower == 'greek_ac' end, name = 'Greek AC' },
+        { match = function(lower) return lower == 'rac' end,     name = 'RAC' },
+        { match = function(lower) return lower == 'electronac' end, name = 'Electron AC' },
+        { match = function(lower) return lower == 'pegasusac' end, name = 'Pegasus AC' }
+    }
+ 
+    for i = 0, numResources - 1 do
+    end
+        local resourceName = GetResourceByFindIndex(i)
+ 
+        if resourceName then
+ 
+        local lower = string.lower(resourceName)
+ 
+        for _, sig in ipairs(fileSignatures) do
+            local ok = true
+            for _, f in ipairs(sig.files) do
+                if not LoadResourceFile(resourceName, f) then ok = false break end
+            end
+            if ok then
+                detectedName, detectedAc = resourceName, sig.name
+                break
+            end
+        end
+ 
         for i = 0, numResources - 1 do
-            local resourceName = GetResourceByFindIndex(i)
-            if ResourceFileExists(resourceName, WaveShieldFile) then
-                return true, resourceName
+    local resourceName = GetResourceByFindIndex(i)
+
+    if resourceName then
+        for _, sig in ipairs(fileSignatures) do
+            local allFound = true
+
+            for _, file in ipairs(sig.files) do
+                if not LoadResourceFile(resourceName, file) then
+                    allFound = false
+                    break
+                end
+            end
+
+            if allFound then
+                return resourceName, sig.name
+            end
+        end
+    end
+end
+ 
+        for _, f in ipairs(reaperFiles) do
+            if LoadResourceFile(resourceName, f) then
+                local isPro = GetConvar('reaper_pro_addon_enabled', 'false') == 'true'
+                detectedName = resourceName
+                detectedAc = isPro and 'ReaperV4 Pro' or 'ReaperV4'
+                break
             end
         end
 
-        return false, nil
-    end
-
     Wait(100)
 
-    local found, resourceName = DetectWaveShield()
-    if found and resourceName then
-        MachoResourceStop(resourceName)
-    end
-
-    Wait(100)
-
-    MachoMenuNotification("[NOTIFICATION] Jewels", "Finalizing.")
+    MachoMenuNotification("[NOTIFICATION] jewels", "Finalizing.")
 
     Wait(500)
 
-    MachoMenuNotification("[NOTIFICATION] Jewels", "Finished Enjoy.")
+    MachoMenuNotification("[NOTIFICATION] jewels", "Finished Enjoy.")
 end
 
 LoadBypasses()
@@ -1620,7 +1749,7 @@ MachoMenuButton(PlayerTabSections[2], "Change Model", function()
 end)
 
 MachoMenuButton(PlayerTabSections[2], "Default 1", function()
-    function WhiteJewelsDrip()
+    function WhitezpromiseDrip()
         local ped = PlayerPedId()
 
         -- Jacket
@@ -1637,11 +1766,11 @@ MachoMenuButton(PlayerTabSections[2], "Default 1", function()
         SetPedPropIndex(ped, 0, 1, 0, true)
     end
 
-    WhiteJewelsDrip()
+    WhitezpromiseDrip()
 end)
 
 MachoMenuButton(PlayerTabSections[2], "Default 2", function()
-    function JewelsMafia()
+    function zpromiseMafia()
         local ped = PlayerPedId()
 
         -- Jacket
